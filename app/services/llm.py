@@ -1,5 +1,3 @@
-import anthropic
-from anthropic.types import TextBlock
 from app.core.config import get_settings
 from app.core.prompts import (
     LINKEDIN_PROMPT,
@@ -15,24 +13,13 @@ PLATFORM_PROMPTS={
     "seo": SEO_PROMPT,
 }
 
-def get_client() -> anthropic.Anthropic:
-    settings = get_settings()
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
 def generate_for_platform(platform:str, content:str) -> str:
-    prompt_template = PLATFORM_PROMPTS[platform]
-    prompt = prompt_template.format(content=content)
+    settings = get_settings()
 
-    client = get_client()
-    message = client.messages.create(
-        model = "claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    block = message.content[0]
-    if not isinstance(block, TextBlock):
-        raise ValueError(f"Expected a TextBlock, but got {type(block)}")
-    return block.text
-
-    
+    if settings.llm_provider == "anthropic":
+        from app.services.llm_anthropic import generate_for_platform as _generate
+    elif settings.llm_provider == "gemini":
+        from app.services.llm_gemini import generate_for_platform as _generate
+    else:
+        raise ValueError(f"Unsupported LLM provider: {settings.llm_provider}")
+    return _generate(platform, content, PLATFORM_PROMPTS[platform])
